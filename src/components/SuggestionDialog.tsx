@@ -11,6 +11,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SuggestionDialogProps {
   open: boolean;
@@ -21,20 +22,39 @@ const SuggestionDialog = ({ open, onOpenChange }: SuggestionDialogProps) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [suggestion, setSuggestion] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    toast({
-      title: "Sugestão enviada!",
-      description: "Obrigado pelo seu feedback. Valorizamos muito sua opinião!",
-    });
+    setIsSubmitting(true);
 
-    setName("");
-    setEmail("");
-    setSuggestion("");
-    onOpenChange(false);
+    try {
+      const { error } = await supabase
+        .from("suggestions")
+        .insert([{ name, email, suggestion }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sugestão enviada!",
+        description: "Obrigado pelo seu feedback. Valorizamos muito sua opinião!",
+      });
+
+      setName("");
+      setEmail("");
+      setSuggestion("");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Erro ao enviar sugestão:", error);
+      toast({
+        title: "Erro ao enviar sugestão",
+        description: "Por favor, tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -80,11 +100,20 @@ const SuggestionDialog = ({ open, onOpenChange }: SuggestionDialogProps) => {
             />
           </div>
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
               Cancelar
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary/90">
-              Enviar Sugestão
+            <Button 
+              type="submit" 
+              className="bg-primary hover:bg-primary/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Enviando..." : "Enviar Sugestão"}
             </Button>
           </div>
         </form>

@@ -4,24 +4,44 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Contact = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    toast({
-      title: "Mensagem enviada!",
-      description: "Obrigado por entrar em contato. Responderemos em breve!",
-    });
+    setIsSubmitting(true);
 
-    setName("");
-    setEmail("");
-    setMessage("");
+    try {
+      const { error } = await supabase.functions.invoke("send-contact-email", {
+        body: { name, email, message },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Mensagem enviada!",
+        description: "Obrigado por entrar em contato. Responderemos em breve!",
+      });
+
+      setName("");
+      setEmail("");
+      setMessage("");
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: "Por favor, tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -75,8 +95,9 @@ const Contact = () => {
             type="submit"
             size="lg"
             className="w-full bg-primary hover:bg-primary/90 shadow-elegant"
+            disabled={isSubmitting}
           >
-            Enviar Mensagem
+            {isSubmitting ? "Enviando..." : "Enviar Mensagem"}
           </Button>
         </form>
       </div>
